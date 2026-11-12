@@ -1,0 +1,11 @@
+node_modules/
+dist/
+dist-windows/
+design/
+src-tauri/target/
+src-tauri/gen/schemas/
+*.log
+.env
+.env.*
+.DS_Store
+Thumbs.db
