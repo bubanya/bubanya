@@ -19,6 +19,13 @@
 - Библиотека инстансов: статистика, переименование, дублирование, экспорт/импорт.
 - Тёмный минималистичный интерфейс, Silkscreen, сменный акцент.
 
+## Скачать
+
+- Linux AppImage: https://github.com/bubanya/bubanya/releases/latest/download/Bubanya-linux-x86_64.AppImage
+- Windows installer: https://github.com/bubanya/bubanya/releases/latest/download/Bubanya-windows-x64-setup.exe
+- Windows portable: https://github.com/bubanya/bubanya/releases/latest/download/Bubanya-windows-x64.zip
+- Сайт: https://bubanya.github.io/
+
 ## Данные
 
 Linux:
