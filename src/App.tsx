@@ -445,6 +445,8 @@ export default function App() {
     null,
   );
   const [appVersion, setAppVersion] = useState("…");
+  const [updateCheckBusy, setUpdateCheckBusy] = useState(false);
+  const [packCheckBusy, setPackCheckBusy] = useState(false);
   const [logText, setLogText] = useState("");
   const [libraryLog, setLibraryLog] = useState("");
   const [logLoading, setLogLoading] = useState(false);
@@ -1879,6 +1881,54 @@ export default function App() {
     }
   }
 
+  // Ручная проверка релиза: мимо суточного кэша. Если версия есть,
+  // снова показываем баннер, даже если его раньше скрывали.
+  async function manualCheckLauncherUpdate() {
+    setUpdateCheckBusy(true);
+    setError(null);
+    try {
+      const update = await api.checkLauncherUpdate(true);
+      setLauncherUpdate(
+        update.available ? { ...update, dismissed: false } : update,
+      );
+      setToast(
+        update.available
+          ? `Доступна Bubanya ${update.latest?.tag.replace(/^v/, "") ?? ""}`
+          : "У вас последняя версия",
+      );
+    } catch (cause) {
+      setError(String(cause));
+    } finally {
+      setUpdateCheckBusy(false);
+    }
+  }
+
+  // Ручная проверка модпаков: мимо суточного кэша по проектам.
+  async function manualCheckPacks() {
+    setPackCheckBusy(true);
+    setError(null);
+    try {
+      const list = await api.checkPackUpdates(true);
+      const map: Record<string, PackUpdateInfo> = {};
+      for (const info of list) {
+        map[info.instanceId] = info;
+      }
+      setPackUpdates(map);
+      const count = list.filter((info) => info.hasUpdate).length;
+      setToast(
+        count === 0
+          ? "Обновлений модпаков нет"
+          : count === 1
+            ? "Доступно обновление модпака"
+            : `Доступны обновления: ${count} модпаков`,
+      );
+    } catch (cause) {
+      setError(String(cause));
+    } finally {
+      setPackCheckBusy(false);
+    }
+  }
+
   async function createAndInstall(versionId: string, loader: string, loaderVersion: string | null) {
     setBusy(versionId);
     setError(null);
@@ -2490,6 +2540,19 @@ export default function App() {
                   ))}
                 </div>
                 <div className="spacer" />
+                {Object.values(packManifests).some(
+                  (manifest) => manifest.projectId,
+                ) && (
+                  <button
+                    className="btn sm"
+                    onClick={manualCheckPacks}
+                    disabled={packCheckBusy}
+                    title="Проверить обновления модпаков на Modrinth"
+                  >
+                    <IconRefresh size={14} />
+                    {packCheckBusy ? "Проверяю…" : "Проверить обновления"}
+                  </button>
+                )}
                 <select
                   className="input select"
                   value={librarySort}
@@ -4206,7 +4269,21 @@ export default function App() {
                   </div>
                 </Panel>
 
-                <Panel wide title="О лаунчере" icon={<IconShield size={16} />}>
+                <Panel
+                  wide
+                  title="О лаунчере"
+                  icon={<IconShield size={16} />}
+                  actions={
+                    <button
+                      className="btn sm"
+                      onClick={manualCheckLauncherUpdate}
+                      disabled={updateCheckBusy}
+                    >
+                      <IconRefresh size={14} />
+                      {updateCheckBusy ? "Проверяю…" : "Проверить обновления"}
+                    </button>
+                  }
+                >
                   <div className="about-brand">
                     <img src={logo} alt="" />
                     <div>

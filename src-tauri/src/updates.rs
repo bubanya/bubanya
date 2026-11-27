@@ -157,12 +157,13 @@ async fn fetch_latest_release(client: &reqwest::Client) -> crate::error::Result<
 
 /// Проверяет свежий релиз лаунчера. Сеть трогаем не чаще раза в сутки,
 /// остальное берём из кэша, поэтому команда дешёвая и не падает без сети.
-pub async fn check_launcher_update(client: &reqwest::Client) -> LauncherUpdate {
+/// `force` пропускает кэш — ручная проверка по кнопке.
+pub async fn check_launcher_update(client: &reqwest::Client, force: bool) -> LauncherUpdate {
     let current = env!("CARGO_PKG_VERSION").to_string();
     let cache_path = paths::root().join("update-check.json");
     let mut cache: UpdateCheckCache = read_cache(&cache_path).unwrap_or_default();
 
-    let fresh = now_millis().saturating_sub(cache.checked_at) < DAY_MS;
+    let fresh = !force && now_millis().saturating_sub(cache.checked_at) < DAY_MS;
     if !fresh {
         match fetch_latest_release(client).await {
             Ok(latest) => {
@@ -204,9 +205,11 @@ pub fn dismiss_launcher_update() -> Result<()> {
 /// Для каждого инстанса, установленного из Modrinth-модпака, выясняет,
 /// есть ли версия нове установленной. Ошибки по отдельным проектам
 /// пропускаем: один недоступный модпак не должен ломать проверку целиком.
+/// `force` пропускает суточный кэш по проектам — ручная проверка по кнопке.
 pub async fn check_pack_updates(
     client: &reqwest::Client,
     instances: &[Instance],
+    force: bool,
 ) -> Vec<PackUpdateInfo> {
     let cache_path = paths::root().join("pack-updates.json");
     let mut cache: PackUpdatesCache = read_cache(&cache_path).unwrap_or_default();
@@ -222,7 +225,7 @@ pub async fn check_pack_updates(
         }
         let project_id = manifest.project_id.clone();
         let entry = match cache.projects.get(&project_id) {
-            Some(entry) if now_millis().saturating_sub(entry.checked_at) < DAY_MS => {
+            Some(entry) if !force && now_millis().saturating_sub(entry.checked_at) < DAY_MS => {
                 entry.clone()
             }
             _ => match crate::modrinth::fetch_latest_version(client, &project_id).await {
@@ -352,14 +355,18 @@ mod tests {
             jvm_args: None,
         };
 
-        let result = check_pack_updates(&client, &[instance.clone()]).await;
+        let result = check_pack_updates(&client, &[instance.clone()], false).await;
         assert_eq!(result.len(), 1);
         assert!(result[0].has_update);
         assert!(!result[0].latest_version_id.is_empty());
 
         // Повторная проверка берётся из кэша: результат тот же, сеть не нужна.
-        let cached = check_pack_updates(&client, &[instance]).await;
+        let cached = check_pack_updates(&client, &[instance.clone()], false).await;
         assert_eq!(cached[0].latest_version_id, result[0].latest_version_id);
+
+        // Принудительная проверка тоже приходит к тому же ответу.
+        let forced = check_pack_updates(&client, &[instance], true).await;
+        assert_eq!(forced[0].latest_version_id, result[0].latest_version_id);
 
         unsafe { std::env::remove_var("BUBANYA_DATA_DIR") };
         std::fs::remove_dir_all(&dir).ok();

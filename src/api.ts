@@ -98,9 +98,11 @@ export const api = {
     invoke<Record<string, PackManifest>>("list_pack_manifests"),
   updateModpack: (id: string, versionId: string | null) =>
     invoke<Instance>("update_modpack", { id, versionId }),
-  checkLauncherUpdate: () => invoke<LauncherUpdate>("check_launcher_update"),
+  checkLauncherUpdate: (force = false) =>
+    invoke<LauncherUpdate>("check_launcher_update", { force }),
   dismissLauncherUpdate: () => invoke<void>("dismiss_launcher_update"),
-  checkPackUpdates: () => invoke<PackUpdateInfo[]>("check_pack_updates"),
+  checkPackUpdates: (force = false) =>
+    invoke<PackUpdateInfo[]>("check_pack_updates", { force }),
   onProgress: (callback: (progress: Progress) => void) =>
     listen<Progress>("install-progress", (event) => callback(event.payload)),
 };
