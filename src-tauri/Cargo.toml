@@ -1,6 +1,6 @@
 [package]
 name = "bubanya"
-version = "0.1.0"
+version = "0.2.0"
 description = "Bubanya — a lightweight Minecraft launcher"
 authors = ["asswa"]
 edition = "2024"

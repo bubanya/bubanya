@@ -10,7 +10,7 @@ use std::sync::Arc;
 use tauri::AppHandle;
 
 const API: &str = "https://api.modrinth.com/v2";
-const USER_AGENT: &str = "Bubanya/0.1 (dev.asswa.bubanya)";
+const USER_AGENT: &str = concat!("Bubanya/", env!("CARGO_PKG_VERSION"), " (dev.asswa.bubanya)");
 
 #[derive(Debug, Deserialize)]
 struct SearchResponse {
@@ -217,6 +217,19 @@ async fn fetch_raw_versions(
         .await?
         .error_for_status()?;
     Ok(response.json().await?)
+}
+
+/// Самая свежая версия проекта: (version_id, version_number, name).
+/// Для проверки обновлений модпаков.
+pub(crate) async fn fetch_latest_version(
+    client: &reqwest::Client,
+    project_id: &str,
+) -> Result<Option<(String, String, String)>> {
+    let versions = fetch_raw_versions(client, project_id, "", "").await?;
+    Ok(versions
+        .into_iter()
+        .next()
+        .map(|version| (version.id, version.version_number, version.name)))
 }
 
 async fn fetch_version_by_id(client: &reqwest::Client, version_id: &str) -> Result<Version> {
@@ -1182,6 +1195,9 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn installs_required_dependencies() {
+        let _guard = crate::paths::DATA_DIR_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let dir = std::env::temp_dir().join(format!("bubanya-dep-test-{}", uuid::Uuid::new_v4()));
         let mods = dir
             .join("instances")

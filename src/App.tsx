@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
+import { getVersion } from "@tauri-apps/api/app";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { openPath, openUrl } from "@tauri-apps/plugin-opener";
@@ -17,8 +18,10 @@ import type {
   Instance,
   InstanceStats,
   JavaInfo,
+  LauncherUpdate,
   ModrinthVersion,
   PackManifest,
+  PackUpdateInfo,
   Progress,
   Settings,
   VersionSummary,
@@ -293,8 +296,20 @@ function stageLabel(stage: string): string {
   }
 }
 
-function Tag({ children, tone = "dim" }: { children: ReactNode; tone?: "dim" | "lime" | "red" }) {
-  return <span className={`tag ${tone}`}>{children}</span>;
+function Tag({
+  children,
+  tone = "dim",
+  title,
+}: {
+  children: ReactNode;
+  tone?: "dim" | "lime" | "red";
+  title?: string;
+}) {
+  return (
+    <span className={`tag ${tone}`} title={title}>
+      {children}
+    </span>
+  );
 }
 
 function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
@@ -423,6 +438,13 @@ export default function App() {
     Record<string, PackManifest>
   >({});
   const [packBusy, setPackBusy] = useState(false);
+  const [packUpdates, setPackUpdates] = useState<Record<string, PackUpdateInfo>>(
+    {},
+  );
+  const [launcherUpdate, setLauncherUpdate] = useState<LauncherUpdate | null>(
+    null,
+  );
+  const [appVersion, setAppVersion] = useState("…");
   const [logText, setLogText] = useState("");
   const [libraryLog, setLibraryLog] = useState("");
   const [logLoading, setLogLoading] = useState(false);
@@ -585,6 +607,55 @@ export default function App() {
       cancelled = true;
     };
   }, [instances]);
+
+  // Обновления модпаков: фоновая проверка раз в сутки (кэш на стороне Rust),
+  // при каждом изменении списка инстансов просто перечитываем актуальное состояние.
+  useEffect(() => {
+    if (instances.length === 0) {
+      setPackUpdates({});
+      return;
+    }
+    let cancelled = false;
+    void api
+      .checkPackUpdates()
+      .then((list) => {
+        if (cancelled) {
+          return;
+        }
+        const map: Record<string, PackUpdateInfo> = {};
+        for (const info of list) {
+          map[info.instanceId] = info;
+        }
+        setPackUpdates(map);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [instances]);
+
+  // Новая версия лаунчера: раз в сутки, тихо, без сети баннер не показываем.
+  useEffect(() => {
+    let cancelled = false;
+    void api
+      .checkLauncherUpdate()
+      .then((update) => {
+        if (!cancelled) {
+          setLauncherUpdate(update);
+        }
+      })
+      .catch(() => {});
+    void getVersion()
+      .then((version) => {
+        if (!cancelled && version) {
+          setAppVersion(version);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!detail) {
@@ -1797,6 +1868,17 @@ export default function App() {
     }
   }
 
+  async function dismissUpdateBanner() {
+    setLauncherUpdate((current) =>
+      current ? { ...current, dismissed: true } : current,
+    );
+    try {
+      await api.dismissLauncherUpdate();
+    } catch {
+      // кэш недоступен — просто скрываем до перезапуска
+    }
+  }
+
   async function createAndInstall(versionId: string, loader: string, loaderVersion: string | null) {
     setBusy(versionId);
     setError(null);
@@ -2266,6 +2348,28 @@ export default function App() {
           </div>
         </header>
 
+        {launcherUpdate?.available && launcherUpdate.latest && !launcherUpdate.dismissed && (
+          <div className="update-banner">
+            <span className="update-banner-icon">
+              <IconArrowUpRight size={14} />
+            </span>
+            <span className="update-banner-text">
+              Доступна Bubanya{" "}
+              <b>{launcherUpdate.latest.tag.replace(/^v/, "")}</b>
+              <button
+                className="link-btn"
+                onClick={() => void openUrl(launcherUpdate.latest!.url)}
+              >
+                Открыть релиз на GitHub
+              </button>
+            </span>
+            <span className="spacer" />
+            <button className="btn sm" onClick={dismissUpdateBanner}>
+              <IconX size={13} /> Скрыть
+            </button>
+          </div>
+        )}
+
         <main className="main">
           {view === "library" && !detail && (
             <div className="view library-view">
@@ -2447,6 +2551,11 @@ export default function App() {
                             <span className="library-name-text">
                               {instance.name}
                             </span>
+                            {packUpdates[instance.id]?.hasUpdate && (
+                              <Tag tone="lime" title="У модпака есть новая версия">
+                                обновление
+                              </Tag>
+                            )}
                           </div>
                           <div className="library-sub">
                             {instance.loader === "fabric"
@@ -2745,6 +2854,15 @@ export default function App() {
                                   : "Файл .mrpack"}
                               </span>
                             </div>
+                            {packUpdates[detail.id]?.hasUpdate && (
+                              <div className="stat">
+                                <span className="stat-label">Доступна версия</span>
+                                <span className="stat-value">
+                                  {packUpdates[detail.id]?.latestVersionNumber ??
+                                    "—"}
+                                </span>
+                              </div>
+                            )}
                           </div>
                           <div className="quick-actions" style={{ marginTop: 8 }}>
                             <button
@@ -4099,7 +4217,7 @@ export default function App() {
                   <div className="about">
                     <div>
                       <span className="muted">Версия</span>
-                      <strong>0.1.0</strong>
+                      <strong>{appVersion}</strong>
                     </div>
                     <div>
                       <span className="muted">Сборка</span>
@@ -4141,7 +4259,7 @@ export default function App() {
           <span className="status-item path" title={dataDir}>
             <IconHardDrive size={13} /> {dataDir}
           </span>
-          <span className="status-item right">v0.1.0</span>
+          <span className="status-item right">v{appVersion}</span>
         </footer>
       </div>
 

@@ -220,6 +220,60 @@ button {
   padding: 18px 22px 20px;
 }
 
+/* ---------- баннер обновления лаунчера ---------- */
+
+.update-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 22px 0;
+  padding: 8px 12px;
+  border: 1px solid var(--accent-border);
+  background: var(--accent-soft);
+}
+
+.update-banner-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  border: 1px solid var(--accent-border);
+  color: var(--accent);
+}
+
+.update-banner-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--dim);
+}
+
+.update-banner-text b {
+  color: var(--accent);
+}
+
+.link-btn {
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.link-btn:hover {
+  color: var(--accent-hover);
+}
+
 .statusbar {
   height: 26px;
   flex: 0 0 26px;
@@ -1933,8 +1987,14 @@ select.input {
 }
 
 .library-name-text {
+  flex: 0 1 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.library-name .tag {
+  flex: 0 0 auto;
 }
 
 .lib-status {

@@ -160,6 +160,29 @@ export interface InstanceStats {
   worlds: number;
 }
 
+export interface LatestRelease {
+  tag: string;
+  name: string;
+  url: string;
+}
+
+export interface LauncherUpdate {
+  available: boolean;
+  current: string;
+  latest: LatestRelease | null;
+  dismissed: boolean;
+}
+
+export interface PackUpdateInfo {
+  instanceId: string;
+  projectId: string;
+  currentVersionId: string;
+  latestVersionId: string;
+  latestVersionNumber: string;
+  latestName: string;
+  hasUpdate: boolean;
+}
+
 export interface DownloadTask {
   id: string;
   name: string;

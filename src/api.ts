@@ -11,11 +11,13 @@ import type {
   InstanceStats,
   JavaCheck,
   JavaInfo,
+  LauncherUpdate,
   LaunchInfo,
   ModrinthSearchResult,
   MicrosoftPollResult,
   ModrinthVersion,
   PackManifest,
+  PackUpdateInfo,
   Progress,
   Settings,
   VersionSummary,
@@ -96,6 +98,9 @@ export const api = {
     invoke<Record<string, PackManifest>>("list_pack_manifests"),
   updateModpack: (id: string, versionId: string | null) =>
     invoke<Instance>("update_modpack", { id, versionId }),
+  checkLauncherUpdate: () => invoke<LauncherUpdate>("check_launcher_update"),
+  dismissLauncherUpdate: () => invoke<void>("dismiss_launcher_update"),
+  checkPackUpdates: () => invoke<PackUpdateInfo[]>("check_pack_updates"),
   onProgress: (callback: (progress: Progress) => void) =>
     listen<Progress>("install-progress", (event) => callback(event.payload)),
 };

@@ -13,6 +13,7 @@ mod mojang;
 mod paths;
 mod process;
 mod token_store;
+mod updates;
 
 use model::{
     Account, Accounts, Instance, JavaInfo, LaunchAuth, LaunchInfo, Settings, VersionSummary,
@@ -753,6 +754,26 @@ async fn update_modpack(
     }
     paths::save_instances(&list)?;
     Ok(instance)
+}
+
+#[tauri::command]
+async fn check_launcher_update(
+    state: State<'_, AppState>,
+) -> Result<updates::LauncherUpdate, error::Error> {
+    Ok(updates::check_launcher_update(&state.client).await)
+}
+
+#[tauri::command]
+fn dismiss_launcher_update() -> Result<(), error::Error> {
+    updates::dismiss_launcher_update()
+}
+
+#[tauri::command]
+async fn check_pack_updates(
+    state: State<'_, AppState>,
+) -> Result<Vec<updates::PackUpdateInfo>, error::Error> {
+    let instances = state.instances.lock().unwrap().clone();
+    Ok(updates::check_pack_updates(&state.client, &instances).await)
 }
 
 #[tauri::command]
@@ -1600,11 +1621,11 @@ pub fn run() {
     paths::ensure().ok();
     let state = AppState {
         client: reqwest::Client::builder()
-            .user_agent("Bubanya/0.1")
+            .user_agent(concat!("Bubanya/", env!("CARGO_PKG_VERSION")))
             .build()
             .expect("http client"),
         auth_client: reqwest::Client::builder()
-            .user_agent("Bubanya/0.1")
+            .user_agent(concat!("Bubanya/", env!("CARGO_PKG_VERSION")))
             .http1_only()
             .connect_timeout(std::time::Duration::from_secs(10))
             .build()
@@ -1662,6 +1683,9 @@ pub fn run() {
             get_pack_manifest,
             list_pack_manifests,
             update_modpack,
+            check_launcher_update,
+            dismiss_launcher_update,
+            check_pack_updates,
             modrinth_update_all,
             modrinth_reindex,
             list_mods,

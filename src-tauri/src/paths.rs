@@ -150,3 +150,8 @@ pub fn ensure_instance(instance: &Instance) -> Result<()> {
 pub fn instance_dir(id: &str) -> PathBuf {
     instances().join(id)
 }
+
+/// Живые тесты, меняющие BUBANYA_DATA_DIR, должны держать этот лок,
+/// иначе параллельные прогоны перетирают каталоги данных друг друга.
+#[cfg(test)]
+pub(crate) static DATA_DIR_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
