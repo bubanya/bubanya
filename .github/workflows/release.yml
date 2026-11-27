@@ -88,7 +88,7 @@ jobs:
           Copy-Item $setup.FullName "artifacts\Bubanya-windows-x64-setup.exe"
           Copy-Item "src-tauri\target\release\bubanya.exe" "artifacts\Bubanya.exe"
           @"
-          Bubanya 0.1.0 for Windows x64
+          Bubanya ${{ github.ref_name }} for Windows x64
 
           Run Bubanya.exe or the setup installer.
           Microsoft Edge WebView2 Runtime is required.
