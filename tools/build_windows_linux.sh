@@ -29,30 +29,43 @@ fi
 npx tauri build --runner cargo-xwin --target "$TARGET" "${BUNDLE_ARGS[@]}"
 
 EXE="src-tauri/target/$TARGET/release/bubanya.exe"
-SETUP="src-tauri/target/$TARGET/release/bundle/nsis/Bubanya_0.1.0_x64-setup.exe"
 OUT="dist-windows"
 mkdir -p "$OUT"
 cp "$EXE" "$OUT/Bubanya.exe"
-if [ -f "$SETUP" ]; then
-  cp "$SETUP" "$OUT/"
+
+export BUBANYA_VERSION="$(python3 -c 'import json; print(json.load(open("src-tauri/tauri.conf.json"))["version"])')"
+export BUBANYA_PRODUCT="$(python3 -c 'import json; print(json.load(open("src-tauri/tauri.conf.json"))["productName"])')"
+export BUBANYA_SETUP="$(ls src-tauri/target/$TARGET/release/bundle/nsis/*-setup.exe 2>/dev/null | head -n1 || true)"
+if [ -n "$BUBANYA_SETUP" ]; then
+  cp "$BUBANYA_SETUP" "$OUT/"
 fi
 
 python3 - <<'PY'
+import os
 from pathlib import Path
 import zipfile
 
 out = Path("dist-windows")
+version = os.environ["BUBANYA_VERSION"]
+product = os.environ["BUBANYA_PRODUCT"]
+setup = os.environ.get("BUBANYA_SETUP", "")
+setup_name = Path(setup).name if setup else ""
+
 readme = out / "README.txt"
-if not readme.exists():
-    readme.write_text(
-        "Bubanya 0.1.0 для Windows (x64)\n\n"
-        "Bubanya.exe — портативная версия.\n"
-        "Bubanya_0.1.0_x64-setup.exe — установщик (если собран).\n"
-        "Требуется Microsoft Edge WebView2 Runtime.\n"
-        "Данные: %APPDATA%\\Bubanya\n",
-        encoding="utf-8",
-    )
-with zipfile.ZipFile(out / "Bubanya-0.1.0-win64.zip", "w", zipfile.ZIP_DEFLATED) as archive:
+lines = [
+    f"{product} {version} для Windows (x64)",
+    "",
+    "Bubanya.exe — портативная версия.",
+]
+if setup_name:
+    lines.append(f"{setup_name} — установщик.")
+lines += [
+    "Требуется Microsoft Edge WebView2 Runtime.",
+    "Данные: %APPDATA%\\Bubanya",
+]
+readme.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+with zipfile.ZipFile(out / f"Bubanya-{version}-win64.zip", "w", zipfile.ZIP_DEFLATED) as archive:
     archive.write(out / "Bubanya.exe", "Bubanya.exe")
     archive.write(readme, "README.txt")
 print("Готово:", out)
